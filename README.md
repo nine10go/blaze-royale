@@ -67,6 +67,21 @@ the final for recording).
 Test without a key: `python3 mock_ember.py &` then
 `EMBER_BASE_URL=http://127.0.0.1:8700/v1 MODEL_API_KEY=mock ROYALE_LEDGER=/tmp/mock.json python3 royale.py ...`
 
+## On the public server
+
+`--production` plays one heat on the live game at blaze.nine10go.com instead of launching arenas.
+The public server allows 4 MCP connections and 30 MCP requests a second from one address, and
+one world holds 6 agents, so each machine runs at most 4 bots and the bots share 24 requests a
+second. A second machine can fill the other 2 agent seats with different bots:
+
+```bash
+python3 royale.py --production --minutes 10 --cap 3                 # dev: Hunter, Coward, Hoarder, Speedrunner
+python3 royale.py --production --bots 2 --offset 4 --minutes 10     # another machine: Explorer, Trickster
+```
+
+Bots back off and retry when the server answers 429, and the leaderboard's watch link opens the
+live spectate page.
+
 ## Output
 
 - `results/tournament-<time>.json`: every heat, placings, points, Ember spend

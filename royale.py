@@ -20,13 +20,16 @@ from functools import partial
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from bot import Bot  # noqa: E402
+from bot import Bot, Pacer  # noqa: E402
 from ember import CapReached, DEFAULT_CAP, Ember, EmberError, HARD_CEILING, Ledger  # noqa: E402
 from personas import PERSONAS, roster  # noqa: E402
 
 WEB = os.path.join(HERE, "web")
 PLACE_POINTS = [10, 7, 5, 3, 2, 1]
 SEATS = 6   # Blaze keeps 2 of its 8 seats for browser players, so 6 agents per world
+PRODUCTION = "https://blaze.nine10go.com/mcp"
+PROD_BOTS = 4      # the public server allows 4 MCP connections from one address
+PROD_RPS = 24      # ... and 30 MCP requests a second; stay a little under
 
 COMMENTATOR = """You are the Ember commentator for Blaze Battle Royale, a live tournament where AI bots,
 each with its own personality, race through a burning maze city. Call the action like an excited
@@ -45,7 +48,12 @@ class Arena:
         gp = args.base_port + 2 * idx
         self.game_port, self.mcp_port = gp, gp + 1
         self.url = url or "http://127.0.0.1:%d/mcp" % self.mcp_port
-        self.spectate = None if self.external else "http://127.0.0.1:%d/spectate" % self.game_port
+        if self.external:
+            self.spectate = url.rsplit("/mcp", 1)[0] + "/spectate" if url.startswith("https://") else None
+        else:
+            self.spectate = "http://127.0.0.1:%d/spectate" % self.game_port
+        rps = args.max_rps if args.max_rps is not None else (PROD_RPS if self.external else 0)
+        self.pacer = Pacer(rps) if rps > 0 else None
 
     def start(self):
         if self.external:
@@ -91,7 +99,7 @@ class Royale:
         urls = args.arena or []
         n = len(urls) if urls else (args.arenas or -(-args.bots // SEATS))
         self.arenas = [Arena(i, args, urls[i] if urls else None) for i in range(n)]
-        self.names = roster(args.bots)
+        self.names = roster(args.offset + args.bots)[args.offset:]
         self.points = collections.Counter()
         self.history = []           # finished heats
         self.lock = threading.Lock()
@@ -180,7 +188,7 @@ class Royale:
         self.current = []
         for i, names in enumerate(groups):
             bots = [Bot(n, self.arenas[i].url, ember_factory=factory, period=self.args.period,
-                        on_event=self.on_event, deadline=deadline) for n in names]
+                        on_event=self.on_event, deadline=deadline, pacer=self.arenas[i].pacer) for n in names]
             self.current.append((self.arenas[i], bots))
         self.on_event("royale", "heat", "%s begins: %s" % (label, ", ".join(sum(groups, []))))
         self.phase = "heat"
@@ -308,9 +316,16 @@ def main():
     ap.add_argument("--server-bin", help="path to blaze-server (cargo build --release in the blaze repo)")
     ap.add_argument("--blaze-root", help="blaze repo root, for the spectate page assets")
     ap.add_argument("--arena", action="append", help="MCP URL of an already running Blaze server (repeat)")
+    ap.add_argument("--production", action="store_true",
+                    help="exhibition on the public server (%s): one heat, at most %d bots" % (PRODUCTION, PROD_BOTS))
+    ap.add_argument("--max-rps", type=float, default=None,
+                    help="MCP requests per second shared by the bots in one arena (default %d for --arena/--production, "
+                         "unlimited for arenas you launch)" % PROD_RPS)
     ap.add_argument("--arenas", type=int, default=0, help="arenas to launch with --server-bin (6 bots each; 0 = enough for --bots)")
     ap.add_argument("--base-port", type=int, default=9100)
     ap.add_argument("--bots", type=int, default=32)
+    ap.add_argument("--offset", type=int, default=0,
+                    help="skip this many roster names, so a second machine on the same server uses different bots")
     ap.add_argument("--minutes", type=float, default=6.0, help="length of each heat")
     ap.add_argument("--period", type=float, default=4.0, help="seconds between Ember calls per bot")
     ap.add_argument("--cap", type=float, default=DEFAULT_CAP,
@@ -325,6 +340,11 @@ def main():
     ap.add_argument("--no-serve", dest="serve", action="store_false")
     ap.add_argument("--linger", type=float, default=0, help="seconds to keep the page up after the final")
     args = ap.parse_args()
+    if args.production:
+        args.arena, args.server_bin = [PRODUCTION], None
+        if args.bots > PROD_BOTS:
+            print("note: the public server takes %d bots from one address; using %d" % (PROD_BOTS, PROD_BOTS))
+            args.bots = PROD_BOTS
     if not args.arena and not args.server_bin:
         ap.error("pass --server-bin (to launch arenas) or --arena <MCP URL>")
     if args.cap > HARD_CEILING:
