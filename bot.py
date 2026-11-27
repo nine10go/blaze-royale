@@ -212,7 +212,7 @@ class Bot:
             self.events = []
             try:
                 text, info = ember.chat([{"role": "system", "content": system},
-                                         {"role": "user", "content": user}], role="bot", max_tokens=200)
+                                         {"role": "user", "content": user}], role="bot", max_tokens=400)
             except CapReached:
                 self.say = "(out of Ember budget, playing on instinct)"
                 self._event("cap", "%s: spending cap reached, Ember paused" % self.name)

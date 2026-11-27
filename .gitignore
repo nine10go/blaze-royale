@@ -1,0 +1,6 @@
+__pycache__/
+spend.json
+*.json.lock
+results/
+arenas/
+web/live.json

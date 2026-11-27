@@ -126,7 +126,7 @@ class Royale:
         if not self.use_ember or self.args.no_commentator:
             return
         try:
-            em = self.ember(max_tokens=160)
+            em = self.ember(max_tokens=400)
         except EmberError:
             return
         while not self.stop.wait(self.args.comment_every):
@@ -142,7 +142,7 @@ class Royale:
                                            for b in top), "\n".join(lines)))
             try:
                 text, info = em.chat([{"role": "system", "content": COMMENTATOR},
-                                      {"role": "user", "content": user}], role="commentator", max_tokens=160)
+                                      {"role": "user", "content": user}], role="commentator", max_tokens=400)
             except CapReached:
                 self.commentary.append({"t": time.time(), "text": "(The commentator has run out of Ember budget.)"})
                 return

@@ -75,9 +75,18 @@ Test without a key: `python3 mock_ember.py &` then
 
 ## Cost
 
-Muse Ember costs $0.10 per million input tokens and $0.50 per million output tokens. One bot
-decision is about 500 input tokens and a few dozen output tokens. Measured numbers for your
-key come from `ember_check.py`.
+Muse Ember costs $0.10 per million input tokens and $0.50 per million output tokens.
+Measured on Nov 27 with `ember_check.py` (520 input tokens per decision):
+
+| reasoning effort | latency | $ per decision | valid replies |
+|---|---|---|---|
+| minimal | ~1.0 to 1.5 s | ~$0.0001 | 3/3 |
+| low | ~2.3 s | ~$0.0003 | 3/3 |
+| model default | ~1.6 s | ~$0.0003 | 0/3 (spent every token reasoning) |
+
+`none` isn't accepted by Ember and falls back to `minimal`, which is the default here. At one
+decision every 4 s per bot, a 36-bot round plus a 6-bot final (6 minutes each) costs about
+$0.39 plus a few cents of commentary, well under the $6 cap.
 
 ## Files
 
