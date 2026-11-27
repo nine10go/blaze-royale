@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blaze Battle Royale</title>
+<style>
+:root {
+  --bg: #0f0d0b; --panel: #1a1714; --panel2: #231f1b; --line: #3a332c;
+  --text: #f4ede4; --muted: #a89c8e; --accent: #ff7a1a; --accent2: #ffb347;
+  --good: #4ade80; --bad: #f87171;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #fbf7f2; --panel: #ffffff; --panel2: #f4eee6; --line: #e3d9cc;
+    --text: #1d1915; --muted: #6f6458; --accent: #d9590b; --accent2: #b86e00;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 24px; padding: 18px 20px 8px; }
+h1 { margin: 0; font-size: 26px; letter-spacing: .5px; }
+h1 span { color: var(--accent); }
+.sub { color: var(--muted); }
+.wrap { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; padding: 12px 20px 24px; }
+@media (max-width: 900px) { .wrap { grid-template-columns: 1fr; padding: 12px 16px; } header { padding: 16px; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 600px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .l { color: var(--muted); font-size: 12px; }
+.meter { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0; transition: width .6s; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+td.say { white-space: normal; color: var(--muted); font-style: italic; min-width: 140px; }
+.chip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+.out td { opacity: .45; }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 9px; background: var(--panel2); color: var(--muted); }
+.tag.hunt { color: #f87171; } .tag.exit { color: #4ade80; } .tag.gems, .tag.drops { color: #facc15; }
+.tag.safe { color: #94a3b8; } .tag.explore { color: #60a5fa; } .tag.shadow { color: #c084fc; }
+.arenas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 16px; }
+.arena .row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 2px 0; }
+.arena a { color: var(--accent); font-size: 12px; }
+.comm p { margin: 0 0 10px; }
+.comm p:first-child { font-size: 17px; color: var(--text); }
+.comm p:not(:first-child) { color: var(--muted); font-size: 14px; }
+.feed div { font-size: 13px; color: var(--muted); padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.feed b { color: var(--text); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Blaze <span>Battle Royale</span></h1>
+  <div class="sub" id="heat">Waiting for the tournament…</div>
+</header>
+<div class="wrap">
+  <main>
+    <div class="stats">
+      <div class="card stat"><div class="v" id="clock">–</div><div class="l">time left in heat</div></div>
+      <div class="card stat"><div class="v" id="alive">–</div><div class="l">bots still in</div></div>
+      <div class="card stat"><div class="v" id="calls">–</div><div class="l">Ember calls</div></div>
+      <div class="card stat"><div class="v" id="spent">–</div><div class="l" id="capl">Ember spend</div>
+        <div class="meter"><i id="meter"></i></div></div>
+    </div>
+    <section class="card">
+      <h2>Live leaderboard</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>#</th><th>Bot</th><th>Level</th><th>Score</th><th>Lives</th><th>Plan</th><th>Says</th></tr></thead>
+        <tbody id="board"><tr><td colspan="7" class="empty">No bots yet.</td></tr></tbody>
+      </table></div>
+    </section>
+    <div class="arenas" id="arenas"></div>
+  </main>
+  <aside>
+    <section class="card comm" style="margin-bottom:16px">
+      <h2>Ember commentary</h2>
+      <div id="comm"><p class="empty">The commentator warms up…</p></div>
+    </section>
+    <section class="card" style="margin-bottom:16px">
+      <h2>Tournament points</h2>
+      <div id="season" class="empty">After the first heat.</div>
+    </section>
+    <section class="card feed">
+      <h2>Event feed</h2>
+      <div id="feed"></div>
+    </section>
+  </aside>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function fmtClock(s) { if (s == null) return "–"; return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
+async function tick() {
+  let d;
+  try { d = await (await fetch("live.json?" + Date.now())).json(); } catch (e) { return; }
+  $("heat").textContent = d.heat + (d.ember && d.ember.on ? " · bots think with " + d.ember.model : " · rules-only bots")
+    + (d.ember && d.ember.median_ms ? " · median Ember reply " + d.ember.median_ms + " ms" : "");
+  $("clock").textContent = d.phase === "done" ? "done" : fmtClock(d.time_left);
+  const lb = d.leaderboard || [];
+  $("alive").textContent = lb.filter(b => b.state !== "out").length + " / " + lb.length;
+  const sp = d.spend || {};
+  $("calls").textContent = (sp.calls || 0).toLocaleString();
+  $("spent").textContent = "$" + (sp.spent || 0).toFixed(sp.spent < 1 ? 4 : 2);
+  $("capl").textContent = "Ember spend of $" + (sp.cap || 0).toFixed(2) + " cap";
+  $("meter").style.width = Math.min(100, 100 * (sp.spent || 0) / (sp.cap || 1)) + "%";
+  $("board").innerHTML = lb.length ? lb.map((b, i) => `<tr class="${b.state === "out" ? "out" : ""}">
+      <td>${i+1}</td><td><span class="chip" style="background:${esc(b.color)}"></span>${esc(b.name)}</td>
+      <td>${b.level}</td><td>${b.score}</td><td>${b.state === "out" ? "out" : "♥".repeat(Math.max(0, b.lives))}</td>
+      <td><span class="tag ${esc(b.intent)}">${esc(b.intent)}</span></td><td class="say">${esc(b.say)}</td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">No bots yet.</td></tr>`;
+  $("arenas").innerHTML = (d.arenas || []).map(a => `<div class="card arena"><h2>Arena ${a.id}
+      ${a.spectate ? `· <a href="${esc(a.spectate)}" target="_blank">watch</a>` : ""}</h2>
+      ${a.bots.map(b => `<div class="row"><span><span class="chip" style="background:${esc(b.color)}"></span>${esc(b.name)}</span>
+      <span>L${b.level} · ${b.score}</span></div>`).join("")}</div>`).join("");
+  const cm = (d.commentary || []).slice().reverse();
+  if (cm.length) $("comm").innerHTML = cm.slice(0, 6).map(c => `<p>${esc(c.text)}</p>`).join("");
+  const se = d.season || [];
+  if (se.length) $("season").innerHTML = "<table>" + se.slice(0, 12).map((s, i) =>
+      `<tr><td>${i+1}</td><td><span class="chip" style="background:${esc(s.color)}"></span>${esc(s.name)}</td><td>${s.points}</td></tr>`).join("") + "</table>";
+  $("feed").innerHTML = (d.events || []).slice().reverse().filter(e => e.kind !== "say").slice(0, 14)
+    .map(e => `<div><b>${esc(e.bot === "royale" ? "★" : e.bot)}</b> ${esc(e.bot === "royale" ? e.text : e.text.replace(e.bot, "").trim())}</div>`).join("");
+}
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>
