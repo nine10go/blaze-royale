@@ -57,10 +57,28 @@ def summarize(obs, me, last_intent, events):
     return "\n".join(lines)
 
 
+class Pacer:
+    """Spaces out calls shared by several bots, to stay under a server's requests-per-second limit."""
+
+    def __init__(self, per_second):
+        self.gap = 1.0 / per_second
+        self.next = 0.0
+        self.lock = threading.Lock()
+
+    def wait(self):
+        with self.lock:
+            now = time.time()
+            t = max(now, self.next)
+            self.next = t + self.gap
+        if t > now:
+            time.sleep(t - now)
+
+
 class Bot:
     def __init__(self, name, mcp_url, ember_factory=None, model="muse-ember-1.0", harness="blaze-royale",
-                 period=4.0, on_event=None, deadline=None, slot=None):
+                 period=4.0, on_event=None, deadline=None, slot=None, pacer=None):
         self.name = name
+        self.pacer = pacer
         self.persona = persona_of(name)
         self.spec = PERSONAS[self.persona]
         self.mcp_url = mcp_url
@@ -79,6 +97,7 @@ class Bot:
         self.events = []
         self.wake = threading.Event()
         self.stop = threading.Event()
+        self.throttled = 0
         self.state = "joining"
         self.best = {"level": 0, "score": 0}
         self.started = None
@@ -100,7 +119,7 @@ class Bot:
                 "out_at": self.out_at, "started": self.started, "moves": self.moves,
                 "ember_calls": self.ember_calls, "ember_fail": self.ember_fail,
                 "ember_ms": int(1000 * sorted(self.ember_lat)[len(self.ember_lat) // 2]) if self.ember_lat else None,
-                "slot": self.slot, "error": self.error}
+                "slot": self.slot, "error": self.error, "throttled": self.throttled}
 
     def start(self):
         self.t_move = threading.Thread(target=self._mover, name=self.name + "-mover", daemon=True)
@@ -137,7 +156,17 @@ class Bot:
     def _call(self, tool, **kw):
         a = dict(self.ident)
         a.update(kw)
-        return self.client.call(tool, a)
+        for attempt in range(6):
+            if self.pacer:
+                self.pacer.wait()
+            try:
+                return self.client.call(tool, a)
+            except mcp_client.MCPError as e:
+                # a shared server (production) answers 429 when this address goes over its limits
+                if "HTTP 429" not in str(e) or attempt == 5 or self.stop.is_set():
+                    raise
+                self.throttled += 1
+                time.sleep(0.4 * (attempt + 1))
 
     def _mover(self):
         try:
@@ -212,7 +241,7 @@ class Bot:
             self.events = []
             try:
                 text, info = ember.chat([{"role": "system", "content": system},
-                                         {"role": "user", "content": user}], role="bot", max_tokens=200)
+                                         {"role": "user", "content": user}], role="bot", max_tokens=400)
             except CapReached:
                 self.say = "(out of Ember budget, playing on instinct)"
                 self._event("cap", "%s: spending cap reached, Ember paused" % self.name)
