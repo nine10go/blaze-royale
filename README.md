@@ -7,6 +7,33 @@ the whole tournament running on a few cents of a $10 credit.
 
 Built for the Muse Ember Hackathon (Cerebral Valley, Nov 23 to Dec 2, 2026).
 
+## Demo
+
+<!-- VIDEO: add the demo video link here once it is recorded -->
+**Video:** _coming soon_
+
+<!-- RESULTS: paste the champion and season table from results/tournament-<time>.json -->
+**Latest tournament:** _to be recorded_
+
+| place | bot | best level | score | season points |
+|---|---|---|---|---|
+| 1 | _tbd_ | | | |
+| 2 | _tbd_ | | | |
+| 3 | _tbd_ | | | |
+
+Total Ember spend for the run: _tbd_ (cap $3).
+
+## Why Ember
+
+Blaze is a real-time game, so a bot that waits seconds for a model loses its lives. Ember at
+`minimal` reasoning answers in about a second for about a hundredth of a cent, which is fast and
+cheap enough to give every bot in a 36-bot tournament its own voice and its own strategy, live,
+for well under a dollar. Ember does three jobs here:
+
+1. **Strategist** for each bot: reads a short summary of what the bot sees and picks an intent.
+2. **Persona voice**: each decision comes with a line in character, shown on the leaderboard.
+3. **Commentator**: turns the latest events into play-by-play every ~12 s.
+
 ## How it works
 
 ```
@@ -26,8 +53,7 @@ Built for the Muse Ember Hackathon (Cerebral Valley, Nov 23 to Dec 2, 2026).
   Ember chooses *what* the bot is trying to do (and talks trash), and a planner in code turns
   that into moves many times a second. If Ember is slow or down, the bot keeps playing on its
   last plan.
-- **Ten personalities** (`personas.py`): Hunter, Coward, Gem Hoarder, Speedrunner, Explorer,
-  Trickster, Tank, Gambler, Shadow, Diplomat. Each has its own Ember voice and planner weights.
+- **Ten personalities** (`personas.py`), each with its own Ember voice and planner weights (see below).
 - **Real multiplayer.** Bots share one city per arena. Every player's burning trail hurts the
   others, and only the gem leader sees the exit, so personalities collide.
 - **Tournament** (`royale.py`): round 1 puts every bot into an arena at once (6 per arena,
@@ -37,6 +63,24 @@ Built for the Muse Ember Hackathon (Cerebral Valley, Nov 23 to Dec 2, 2026).
 - **Hard spending cap** (`ember.py`): every call reserves its worst-case cost before it is sent
   and is refused if it would cross the cap. Spend is kept in `spend.json`, shared by all runs,
   so the cap holds across tournaments. Default $6, and nothing can raise it above $9.
+
+## The bots
+
+| bot | starts out | plays like |
+|---|---|---|
+| Hunter | hunt | stalks the score leader and cuts across their path |
+| Coward | safe | keeps far from everything and outlives the field |
+| Gem Hoarder | gems | sweeps up gem clusters and drops, brags about the pile |
+| Speedrunner | exit | goes straight for the exit in long dashes |
+| Explorer | explore | maps unknown ground and narrates what it finds |
+| Trickster | gems | baits enemies into rivals and changes plans often |
+| Tank | gems | short careful steps, never panics |
+| Gambler | drops | risky shortcuts and +100 orange drops |
+| Shadow | shadow | trails the leader and steals what they uncover |
+| Diplomat | gems | avoids fights and wins on clean collecting |
+
+Ember can switch any bot to another intent (hunt, gems, drops, exit, explore, safe, shadow) as the
+game changes, but each persona's voice pushes it toward its own style.
 
 ## Run it
 
@@ -102,6 +146,16 @@ Measured on Nov 27 with `ember_check.py` (520 input tokens per decision):
 `none` isn't accepted by Ember and falls back to `minimal`, which is the default here. At one
 decision every 4 s per bot, a 36-bot round plus a 6-bot final (6 minutes each) costs about
 $0.39 plus a few cents of commentary, well under the $6 cap.
+
+## Recording a demo
+
+```bash
+python3 royale.py --server-bin ~/blaze/server/target/release/blaze-server --blaze-root ~/blaze \
+                  --bots 36 --minutes 6 --cap 3 --linger 600
+```
+
+Record the leaderboard page and one arena's watch page side by side. `--linger 600` keeps the page
+up for 10 minutes after the final so the champion screen can be captured.
 
 ## Files
 
